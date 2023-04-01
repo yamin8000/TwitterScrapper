@@ -4,27 +4,54 @@ import io.github.yamin8000.twitterscrapper.helpers.client
 import io.github.yamin8000.twitterscrapper.helpers.httpGet
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
+import java.io.File
+import java.nio.file.Files
 import java.util.regex.Pattern
+import kotlin.io.path.Path
+
+private val userRegex = Regex("@[a-zA-Z0-9_]+")
+private const val LIMIT = 3
 
 fun main() {
-    println("Enter username to fetch posts:")
-    val username = readlnOrNull()
+    crawl()
+}
+
+private fun crawl(
+    username: String? = null
+) {
     if (username != null) {
-        getUserPosts(username).forEachIndexed { index, item ->
-            println(index)
-            println(item)
-        }
+        val file = File("data/${username.lowercase()}.txt")
+        if (!file.exists()) {
+            val (posts, newUsers) = getUsers(username.lowercase(), 100)
+            saveUserPosts(username.lowercase(), posts)
+            newUsers.forEach { crawl(it.substring(1)) }
+        } else println("$username exists")
+    } else {
+        println("Enter username to fetch posts:")
+        crawl(readlnOrNull())
     }
 }
 
-private fun getUserPosts(
+private fun saveUserPosts(
+    username: String,
+    posts: List<String>
+) {
+    println("saving $username")
+    val file = File("data/$username.txt")
+    posts.forEachIndexed { index, line ->
+        println("tweet #$index for $username")
+        file.appendText("$line\n")
+    }
+}
+
+private fun getUsers(
     username: String,
     limit: Int = 100
-): List<String> {
+): Pair<List<String>, Set<String>> {
     val base = "https://nitter.net/"
     var cursor = ""
 
-    val twits = mutableListOf<String>()
+    val tweets = mutableListOf<String>()
     var hasMoreIndicator = ""
 
     var html: String
@@ -35,14 +62,18 @@ private fun getUserPosts(
             hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
             cursor = hasMoreIndicator.split('=').last()
             val threads = doc.select("div[class^=thread-line]")
-            twits.addAll(getSingles(doc.allElements))
-            twits.addAll(getSingles(threads))
-            if (twits.size >= limit)
+            tweets.addAll(getSingles(doc.allElements))
+            tweets.addAll(getSingles(threads))
+            if (tweets.size >= limit)
                 break
         }
     } while (hasMoreIndicator.isNotBlank())
-    return twits.take(limit).map { removeLinks(it) }
+    val newUsers = fetchNewUsers(html).map { it.lowercase() }.toMutableList()
+    newUsers.remove("@$username")
+    return tweets.take(limit).map { removeLinks(it) } to newUsers.toSet()
 }
+
+fun fetchNewUsers(html: String) = userRegex.findAll(html).map { it.value.lowercase() }.toSet()
 
 fun removeLinks(
     twit: String
