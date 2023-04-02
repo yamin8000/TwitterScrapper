@@ -1,5 +1,5 @@
 plugins {
-    kotlin("jvm") version "1.8.0"
+    kotlin("jvm") version "1.8.10"
     application
 }
 
@@ -11,12 +11,9 @@ repositories {
 }
 
 dependencies {
-    implementation("com.squareup.okhttp3:okhttp:4.10.0")
+    implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.10")
     implementation("org.jsoup:jsoup:1.15.3")
-}
-
-tasks.test {
-
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0-Beta")
 }
 
 kotlin {

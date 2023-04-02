@@ -4,12 +4,12 @@ object Utility {
     fun <T> csvOf(
         headers: List<String>,
         data: List<T>,
-        itemBuilder: (T) -> List<String>
+        itemBuilder: (Int, T) -> List<String>
     ) = buildString {
         append(headers.joinToString(",") { "\"$it\"" })
         append("\n")
-        data.forEach { item ->
-            append(itemBuilder(item).joinToString(",") { "\"$it\"" })
+        data.forEachIndexed { index, item ->
+            append(itemBuilder(index, item).joinToString(",") { "\"$it\"" })
             append("\n")
         }
     }
