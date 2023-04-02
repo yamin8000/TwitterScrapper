@@ -2,9 +2,9 @@ package io.github.yamin8000.twitterscrapper.util
 
 object Utility {
     fun <T> csvOf(
-        headers: List<String>,
-        data: List<T>,
-        itemBuilder: (Int, T) -> List<String>
+        headers: Iterable<String>,
+        data: Iterable<T>,
+        itemBuilder: (Int, T) -> Iterable<String>
     ) = buildString {
         append(headers.joinToString(",") { "\"$it\"" })
         append("\n")

@@ -20,16 +20,24 @@ class Crawler {
 
     private var startingUsers = listOf<String>()
 
+    private var triggers: List<String> = listOf()
+
     init {
         var line = ""
         while (line.isBlank()) {
             println("Enter name of the starting users like this:")
             println("ali,reza,hamed")
             line = readlnOrNull() ?: ""
-            println("Enter tweet limit for each user or just enter.")
+            println("Enter tweet limit for each user or just press enter to get default number.")
             val limit = readlnOrNull()
             if (!limit.isNullOrBlank()) {
                 DEFAULT_TWEETS_LIMIT = limit.toInt()
+            }
+            println("Enter triggers like this or just press enter to get all.")
+            println("iran,asia")
+            val triggerLine = readlnOrNull()
+            if (!triggerLine.isNullOrBlank()) {
+                triggers = triggerLine.split(',')
             }
         }
         startingUsers = line.trim().split(',').map { it.sanitizeUser() }
@@ -62,8 +70,8 @@ class Crawler {
                         saveUserPosts(cleanUsername, tweets)
                     else println("$cleanUsername has no tweets")
                     buildList {
-                        newUsers.forEach {
-                            add(scope.launch { singleUserCrawler(it.substring(1)) })
+                        newUsers.map { it.substring(1) }.forEach {
+                            add(scope.launch { singleUserCrawler(it) })
                         }
                     }.joinAll()
                 } else println("$cleanUsername exists")
@@ -75,42 +83,42 @@ class Crawler {
         username: String,
         limit: Int = DEFAULT_TWEETS_LIMIT,
         base: String = "https://nitter.net/"
-    ): Pair<List<String>, Set<String>> {
+    ): Pair<Set<String>, Set<String>> {
         var tempBase = base
         var cursor = ""
 
-        val tweets = mutableListOf<String>()
-        var hasMoreIndicator = ""
+        var tweets = mutableListOf<String>()
+        var hasMoreIndicator: String
 
         var html: String
+        var failedScrap: Boolean
+
+        println("fetching $username posts from $tempBase")
         do {
             do {
-                println("fetching $username posts from $tempBase")
                 html = client.httpGet("$tempBase$username?cursor=$cursor")
-                if (html.contains(ERROR_503)) {
-                    println("### ==> $ERROR_503 <== ### for $username with instance: $tempBase")
+                failedScrap = html.isBlank() || html.contains(ERROR_503)
+                if (failedScrap) {
+                    println("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase")
                     tempBase = instances[Random.nextInt(instances.indices)]
                     delay(Random.nextLong(50L, 500L))
                 }
-            } while (html.isBlank() || html.contains(ERROR_503))
-            if (html.contains(ERROR_503)) {
-
-                return getTweetsWithUsers(username, limit, instances[Random.nextInt(instances.indices)])
-            }
-            if (html.isNotBlank()) {
-                val doc = Jsoup.parse(html)
-                hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
-                cursor = hasMoreIndicator.split('=').last()
-                val threads = doc.select("div[class^=thread-line]")
-                tweets.addAll(getSingles(doc.allElements))
-                tweets.addAll(getSingles(threads))
-                if (tweets.size >= limit)
-                    break
-            }
+            } while (failedScrap)
+            val doc = Jsoup.parse(html)
+            hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
+            cursor = hasMoreIndicator.split('=').last()
+            val threads = doc.select("div[class^=thread-line]")
+            tweets.addAll(getSingles(doc.allElements))
+            tweets.addAll(getSingles(threads))
+            if (tweets.size >= limit)
+                break
         } while (hasMoreIndicator.isNotBlank())
         val newUsers = fetchNewUsers(html).map { it.lowercase() }.toMutableList()
         newUsers.remove("@$username")
-        return tweets.take(limit).map { removeLinks(it) } to newUsers.toSet()
+        triggers.forEach { trigger ->
+            tweets = tweets.filter { it.contains(trigger) }.toMutableList()
+        }
+        return tweets.take(limit).map { removeLinks(it) }.toSet() to newUsers.toSet()
     }
 
     private fun getSingles(
@@ -123,7 +131,7 @@ class Crawler {
 
     private fun saveUserPosts(
         username: String,
-        posts: List<String>
+        posts: Set<String>
     ) {
         val file = File("${Constants.DOWNLOAD_PATH}/$username.txt")
 
