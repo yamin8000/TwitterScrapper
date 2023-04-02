@@ -4,12 +4,16 @@ import io.github.yamin8000.twitterscrapper.helpers.client
 import io.github.yamin8000.twitterscrapper.helpers.httpGet
 import io.github.yamin8000.twitterscrapper.util.Constants
 import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_TWEETS_LIMIT
+import io.github.yamin8000.twitterscrapper.util.Constants.ERROR_503
+import io.github.yamin8000.twitterscrapper.util.Constants.instances
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
 import kotlinx.coroutines.*
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import java.io.File
 import java.util.regex.Pattern
+import kotlin.random.Random
+import kotlin.random.nextInt
 
 class Crawler {
     private val scope = CoroutineScope(Dispatchers.IO)
@@ -45,12 +49,12 @@ class Crawler {
             if (cleanUsername.isNotBlank()) {
                 val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
                 if (!file.exists()) {
-                    val (posts, newUsers) = getUsers(cleanUsername)
+                    val (tweets, newUsers) = getTweetsWithUsers(cleanUsername)
                     if (newUsers.isNotEmpty())
-                        println("new users from $username are ${newUsers.take(5).joinToString()} and maybe more.")
+                        println("new users from $cleanUsername are ${newUsers.take(5).joinToString()} and maybe more.")
                     else println("$cleanUsername has no friends")
-                    if (posts.isNotEmpty())
-                        saveUserPosts(cleanUsername, posts)
+                    if (tweets.isNotEmpty())
+                        saveUserPosts(cleanUsername, tweets)
                     else println("$cleanUsername has no tweets")
                     buildList {
                         newUsers.forEach {
@@ -62,11 +66,12 @@ class Crawler {
         }
     }
 
-    private fun getUsers(
+    private suspend fun getTweetsWithUsers(
         username: String,
-        limit: Int = DEFAULT_TWEETS_LIMIT
+        limit: Int = DEFAULT_TWEETS_LIMIT,
+        base: String = "https://nitter.net/"
     ): Pair<List<String>, Set<String>> {
-        val base = "https://nitter.net/"
+        var tempBase = base
         var cursor = ""
 
         val tweets = mutableListOf<String>()
@@ -74,7 +79,19 @@ class Crawler {
 
         var html: String
         do {
-            html = client.httpGet("$base$username?cursor=$cursor")
+            do {
+                println("fetching $username posts from $tempBase")
+                html = client.httpGet("$tempBase$username?cursor=$cursor")
+                if (html.contains(ERROR_503)) {
+                    tempBase = instances[Random.nextInt(instances.indices)]
+                    println("### ==> $ERROR_503 <== ### for $username with instance: $base")
+                    delay(500)
+                }
+            } while (html.isBlank() || html.contains(ERROR_503))
+            if (html.contains(ERROR_503)) {
+
+                return getTweetsWithUsers(username, limit, instances[Random.nextInt(instances.indices)])
+            }
             if (html.isNotBlank()) {
                 val doc = Jsoup.parse(html)
                 hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
@@ -123,10 +140,14 @@ class Crawler {
     }
 
     private fun removeLinks(
-        twit: String
+        tweet: String
     ): String {
-        return Pattern.compile("<a.*</a>").matcher(twit).replaceAll {
-            it.group().substringAfter(">").substringBefore("</a>")
+        return try {
+            Pattern.compile("<a.*</a>").matcher(tweet).replaceAll {
+                it.group().substringAfter(">").substringBefore("</a>")
+            }
+        } catch (e: Exception) {
+            tweet
         }
     }
 
