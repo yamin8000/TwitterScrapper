@@ -21,7 +21,9 @@ import java.util.regex.Pattern
 import kotlin.random.Random
 import kotlin.random.nextInt
 
-class Crawler {
+class Crawler(
+    private val isNested: Boolean = true
+) {
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private var startingUsers = listOf<String>()
@@ -69,23 +71,25 @@ class Crawler {
                 val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
                 if (!file.exists()) {
                     val (tweets, newUsers) = getTweetsWithUsers(cleanUsername)
-                    if (newUsers.isNotEmpty()) {
-                        t.println(
-                            infoStyle(
-                                "new users from $cleanUsername are ${
-                                    newUsers.take(5).joinToString()
-                                } and maybe more."
+                    if (isNested) {
+                        if (newUsers.isNotEmpty()) {
+                            t.println(
+                                infoStyle(
+                                    "new users from $cleanUsername are ${
+                                        newUsers.take(5).joinToString()
+                                    } and maybe more."
+                                )
                             )
-                        )
-                    } else t.println(warningStyle("$cleanUsername has no friends"))
+                        } else t.println(warningStyle("$cleanUsername has no friends"))
+                        buildList {
+                            newUsers.map { it.substring(1) }.forEach {
+                                add(scope.launch { singleUserCrawler(it) })
+                            }
+                        }.joinAll()
+                    }
                     if (tweets.isNotEmpty())
                         saveUserPosts(cleanUsername, tweets)
                     else t.println(infoStyle("$cleanUsername has no tweets"))
-                    buildList {
-                        newUsers.map { it.substring(1) }.forEach {
-                            add(scope.launch { singleUserCrawler(it) })
-                        }
-                    }.joinAll()
                 } else t.println(warningStyle("$cleanUsername exists"))
             }
         }

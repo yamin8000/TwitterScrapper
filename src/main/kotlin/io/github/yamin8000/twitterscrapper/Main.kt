@@ -43,7 +43,12 @@ private fun crawler() {
 }
 
 fun fetchTweets() {
-
+    val crawler = Crawler(isNested = false)
+    runBlocking {
+        withContext(Dispatchers.Default) {
+            crawler.crawl()
+        }
+    }
 }
 
 fun settings() {

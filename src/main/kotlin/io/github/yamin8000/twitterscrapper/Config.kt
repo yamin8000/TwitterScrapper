@@ -19,6 +19,7 @@ class Config {
 
     init {
         FileUtils.createDirIfNotExists(DOWNLOAD_PATH)
+        FileUtils.createDirIfNotExists("config")
         createConfigFileIfNecessary()
         loadConfigToMemory()
     }
