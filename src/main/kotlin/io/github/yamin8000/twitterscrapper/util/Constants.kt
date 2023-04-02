@@ -6,6 +6,12 @@ import com.github.ajalt.mordant.terminal.Terminal
 
 @OptIn(com.github.ajalt.mordant.terminal.ExperimentalTerminalApi::class)
 object Constants {
+    val mainMenu = """
+        1. Crawler
+        2. Fetch Users' Tweets
+        3. Settings
+    """.trimIndent()
+
     val t = Terminal()
     val resultStyle = TextColors.green
     val infoStyle = TextColors.brightMagenta + TextStyles.bold
@@ -17,7 +23,8 @@ object Constants {
     private const val TWITTER_PROFILE_REGEX_RULE = "@[a-zA-Z0-9_]+"
     val twitterProfileRegex = Regex(TWITTER_PROFILE_REGEX_RULE)
 
-    const val DOWNLOAD_PATH = "d:\\TwitterScrapper"
+    const val DOWNLOAD_FOLDER = "downloadFolder"
+    const val DOWNLOAD_PATH = "c:\\TwitterScrapper"
 
     var DEFAULT_TWEETS_LIMIT = 500
 
