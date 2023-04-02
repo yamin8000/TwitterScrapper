@@ -1,6 +1,5 @@
 package io.github.yamin8000.twitterscrapper
 
-import io.github.yamin8000.twitterscrapper.util.Constants
 import io.github.yamin8000.twitterscrapper.util.Constants.DOWNLOAD_FOLDER
 import io.github.yamin8000.twitterscrapper.util.Constants.DOWNLOAD_PATH
 import io.github.yamin8000.twitterscrapper.util.Constants.errorStyle
@@ -21,6 +20,7 @@ class Config {
     init {
         FileUtils.createDirIfNotExists(DOWNLOAD_PATH)
         createConfigFileIfNecessary()
+        loadConfigToMemory()
     }
 
     private fun createConfigFileIfNecessary() {
@@ -59,7 +59,7 @@ class Config {
         return configRegex.matches(configFileContent)
     }
 
-    private fun updateConfigFile(configPair: Pair<String, Any>) {
+    fun updateConfigFile(configPair: Pair<String, Any>) {
         configPairs.listIterator().let { iterator ->
             while (iterator.hasNext()) {
                 if (iterator.next().first == configPair.first) {
@@ -81,12 +81,10 @@ class Config {
     }
 
     private fun loadConfigToMemory() {
-        /*configPairs.forEach {
+        configPairs.forEach {
             when (it.first) {
-                LOADING_ANIMATION -> currentLoadingAnimation = it.second.toInt()
-                DOWNLOAD_FOLDER -> downloadDir = it.second
-                SESSION_AUTOSAVE -> isAutosavingSession = it.second.toBoolean()
+                DOWNLOAD_FOLDER -> DOWNLOAD_PATH = it.second
             }
-        }*/
+        }
     }
 }

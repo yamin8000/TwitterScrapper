@@ -24,7 +24,7 @@ object Constants {
     val twitterProfileRegex = Regex(TWITTER_PROFILE_REGEX_RULE)
 
     const val DOWNLOAD_FOLDER = "downloadFolder"
-    const val DOWNLOAD_PATH = "c:\\TwitterScrapper"
+    var DOWNLOAD_PATH = "c:\\TwitterScrapper"
 
     var DEFAULT_TWEETS_LIMIT = 500
 
