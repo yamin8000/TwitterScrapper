@@ -5,7 +5,13 @@ import io.github.yamin8000.twitterscrapper.helpers.httpGet
 import io.github.yamin8000.twitterscrapper.util.Constants
 import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_TWEETS_LIMIT
 import io.github.yamin8000.twitterscrapper.util.Constants.ERROR_503
+import io.github.yamin8000.twitterscrapper.util.Constants.askStyle
+import io.github.yamin8000.twitterscrapper.util.Constants.errorStyle
+import io.github.yamin8000.twitterscrapper.util.Constants.infoStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.instances
+import io.github.yamin8000.twitterscrapper.util.Constants.resultStyle
+import io.github.yamin8000.twitterscrapper.util.Constants.t
+import io.github.yamin8000.twitterscrapper.util.Constants.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
 import kotlinx.coroutines.*
 import org.jsoup.Jsoup
@@ -25,16 +31,16 @@ class Crawler {
     init {
         var line = ""
         while (line.isBlank()) {
-            println("Enter name of the starting users like this:")
-            println("ali,reza,hamed")
+            t.println(askStyle("Enter name of the starting users like this:"))
+            t.println(infoStyle("ali,reza,hamed"))
             line = readlnOrNull() ?: ""
-            println("Enter tweet limit for each user or just press enter to get default number.")
+            t.println(askStyle("Enter tweet limit for each user or just press enter to get default number."))
             val limit = readlnOrNull()
             if (!limit.isNullOrBlank()) {
                 DEFAULT_TWEETS_LIMIT = limit.toInt()
             }
-            println("Enter triggers like this or just press enter to get all.")
-            println("iran,asia")
+            t.println(askStyle("Enter triggers like this or just press enter to get all."))
+            t.println(infoStyle("iran,asia"))
             val triggerLine = readlnOrNull()
             if (!triggerLine.isNullOrBlank()) {
                 triggers = triggerLine.split(',')
@@ -57,24 +63,30 @@ class Crawler {
         username: String
     ) {
         withContext(scope.coroutineContext) {
-            println("crawling: $username")
+            t.println(infoStyle("crawling: $username"))
             val cleanUsername = username.sanitizeUser()
             if (cleanUsername.isNotBlank()) {
                 val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
                 if (!file.exists()) {
                     val (tweets, newUsers) = getTweetsWithUsers(cleanUsername)
-                    if (newUsers.isNotEmpty())
-                        println("new users from $cleanUsername are ${newUsers.take(5).joinToString()} and maybe more.")
-                    else println("$cleanUsername has no friends")
+                    if (newUsers.isNotEmpty()) {
+                        t.println(
+                            infoStyle(
+                                "new users from $cleanUsername are ${
+                                    newUsers.take(5).joinToString()
+                                } and maybe more."
+                            )
+                        )
+                    } else t.println(warningStyle("$cleanUsername has no friends"))
                     if (tweets.isNotEmpty())
                         saveUserPosts(cleanUsername, tweets)
-                    else println("$cleanUsername has no tweets")
+                    else t.println(infoStyle("$cleanUsername has no tweets"))
                     buildList {
                         newUsers.map { it.substring(1) }.forEach {
                             add(scope.launch { singleUserCrawler(it) })
                         }
                     }.joinAll()
-                } else println("$cleanUsername exists")
+                } else t.println(warningStyle("$cleanUsername exists"))
             }
         }
     }
@@ -93,13 +105,13 @@ class Crawler {
         var html: String
         var failedScrap: Boolean
 
-        println("fetching $username posts from $tempBase")
+        t.println(infoStyle("fetching $username posts from $tempBase"))
         do {
             do {
                 html = client.httpGet("$tempBase$username?cursor=$cursor")
                 failedScrap = html.isBlank() || html.contains(ERROR_503)
                 if (failedScrap) {
-                    println("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase")
+                    t.println(errorStyle("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase"))
                     tempBase = instances[Random.nextInt(instances.indices)]
                     delay(Random.nextLong(50L, 500L))
                 }

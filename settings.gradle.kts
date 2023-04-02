@@ -1,3 +1,3 @@
 
-rootProject.name = "TwitterScapper"
+rootProject.name = "TwitterScrapper"
 
