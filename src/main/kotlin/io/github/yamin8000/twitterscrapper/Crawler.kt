@@ -26,6 +26,11 @@ class Crawler {
             println("Enter name of the starting users like this:")
             println("ali,reza,hamed")
             line = readlnOrNull() ?: ""
+            println("Enter tweet limit for each user or just enter.")
+            val limit = readlnOrNull()
+            if (!limit.isNullOrBlank()) {
+                DEFAULT_TWEETS_LIMIT = limit.toInt()
+            }
         }
         startingUsers = line.trim().split(',').map { it.sanitizeUser() }
     }
@@ -83,9 +88,9 @@ class Crawler {
                 println("fetching $username posts from $tempBase")
                 html = client.httpGet("$tempBase$username?cursor=$cursor")
                 if (html.contains(ERROR_503)) {
+                    println("### ==> $ERROR_503 <== ### for $username with instance: $tempBase")
                     tempBase = instances[Random.nextInt(instances.indices)]
-                    println("### ==> $ERROR_503 <== ### for $username with instance: $base")
-                    delay(500)
+                    delay(Random.nextLong(50L, 500L))
                 }
             } while (html.isBlank() || html.contains(ERROR_503))
             if (html.contains(ERROR_503)) {
