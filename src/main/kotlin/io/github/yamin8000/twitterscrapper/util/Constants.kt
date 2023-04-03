@@ -20,7 +20,7 @@ object Constants {
     val warningStyle = TextColors.yellow + TextStyles.bold
     val menuStyle = TextColors.blue + TextStyles.bold
 
-    private const val TWITTER_PROFILE_REGEX_RULE = "@[a-zA-Z0-9_]+"
+    const val TWITTER_PROFILE_REGEX_RULE = "@[a-zA-Z0-9_]+"
     val twitterProfileRegex = Regex(TWITTER_PROFILE_REGEX_RULE)
 
     const val DOWNLOAD_FOLDER = "downloadFolder"

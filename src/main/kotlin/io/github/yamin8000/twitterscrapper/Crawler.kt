@@ -9,11 +9,12 @@ import io.github.yamin8000.twitterscrapper.util.Constants.askStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.errorStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.infoStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.instances
-import io.github.yamin8000.twitterscrapper.util.Constants.resultStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.t
 import io.github.yamin8000.twitterscrapper.util.Constants.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
 import kotlinx.coroutines.*
+import okhttp3.Response
+import okio.IOException
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import java.io.File
@@ -52,25 +53,24 @@ class Crawler(
     }
 
     suspend fun crawl() {
-        withContext(scope.coroutineContext) {
-            buildList {
-                startingUsers.forEach { user ->
-                    add(scope.launch { singleUserCrawler(user) })
-                }
-            }.joinAll()
-        }
+        buildList {
+            startingUsers.forEach { user ->
+                add(scope.launch { singleUserCrawler(user) })
+            }
+        }.joinAll()
     }
 
     private suspend fun singleUserCrawler(
         username: String
     ) {
-        withContext(scope.coroutineContext) {
-            t.println(infoStyle("crawling: $username"))
-            val cleanUsername = username.sanitizeUser()
-            if (cleanUsername.isNotBlank()) {
-                val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
-                if (!file.exists()) {
-                    val (tweets, newUsers) = getTweetsWithUsers(cleanUsername)
+        t.println(infoStyle("crawling: $username"))
+        val cleanUsername = username.sanitizeUser()
+        if (cleanUsername.isNotBlank()) {
+            val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
+            if (!file.exists()) {
+                val (tweets, newUsers) = withContext(scope.coroutineContext) { getTweetsWithUsers(cleanUsername) }
+                if (tweets.isNotEmpty()) {
+                    saveUserPosts(cleanUsername, tweets.filter { it.isNotBlank() }.toSet())
                     if (isNested) {
                         if (newUsers.isNotEmpty()) {
                             t.println(
@@ -87,14 +87,14 @@ class Crawler(
                             }
                         }.joinAll()
                     }
-                    if (tweets.isNotEmpty())
-                        saveUserPosts(cleanUsername, tweets)
-                    else t.println(infoStyle("$cleanUsername has no tweets"))
-                } else t.println(warningStyle("$cleanUsername exists"))
-            }
+                } else t.println(warningStyle("$cleanUsername has no tweets"))
+            } else t.println(warningStyle("$cleanUsername exists"))
         }
     }
 
+    /**
+     * God Method, it should be refactored to a class
+     */
     private suspend fun getTweetsWithUsers(
         username: String,
         limit: Int = DEFAULT_TWEETS_LIMIT,
@@ -107,29 +107,56 @@ class Crawler(
         var hasMoreIndicator: String
 
         var html: String
-        var failedScrap: Boolean
+        var totalTweets: Int
+        val newUsers = mutableListOf<String>()
 
         t.println(infoStyle("fetching $username posts from $tempBase"))
-        do {
-            do {
-                html = client.httpGet("$tempBase$username?cursor=$cursor")
-                failedScrap = html.isBlank() || html.contains(ERROR_503)
-                if (failedScrap) {
-                    t.println(errorStyle("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase"))
-                    tempBase = instances[Random.nextInt(instances.indices)]
-                    delay(Random.nextLong(50L, 500L))
+        pagingLoop@ do {
+            requestLoop@ do {
+                var response: Response? = null
+                try {
+                    response = client.httpGet("$tempBase$username?cursor=$cursor")
+                    html = response.body.string()
+                } catch (e: Exception) {
+                    html = ""
+                    t.println(errorStyle((e as IOException).message ?: "http get error"))
                 }
-            } while (failedScrap)
+                when (response?.code) {
+                    404 -> {
+                        t.println(warningStyle("$username not found"))
+                        break@pagingLoop
+                    }
+
+                    in 400..499 -> {
+                        break@pagingLoop
+                    }
+
+                    503 -> {
+                        t.println(errorStyle("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase"))
+                        tempBase = instances[Random.nextInt(instances.indices)]
+                        delay(Random.nextLong(50L, 500L))
+                    }
+
+                    in 500..599 -> {
+                        continue
+                    }
+
+                    else -> break@requestLoop
+                }
+            } while (true)
             val doc = Jsoup.parse(html)
+            totalTweets = doc.getElementById("profile-stat-num")?.text()?.toInt() ?: 0
             hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
-            cursor = hasMoreIndicator.split('=').last()
             val threads = doc.select("div[class^=thread-line]")
             tweets.addAll(getSingles(doc.allElements))
             tweets.addAll(getSingles(threads))
+            cursor = hasMoreIndicator.split('=').last()
+            newUsers.addAll(fetchNewUsers(html).map { it.lowercase() }.toMutableList())
             if (tweets.size >= limit)
                 break
+            if (tweets.isEmpty() && totalTweets != 0)
+                continue
         } while (hasMoreIndicator.isNotBlank())
-        val newUsers = fetchNewUsers(html).map { it.lowercase() }.toMutableList()
         newUsers.remove("@$username")
         triggers.forEach { trigger ->
             tweets = tweets.filter { it.contains(trigger) }.toMutableList()
@@ -147,19 +174,25 @@ class Crawler(
 
     private fun saveUserPosts(
         username: String,
-        posts: Set<String>
+        tweets: Set<String>
     ) {
+        t.println(infoStyle("saving $username tweets"))
         val file = File("${Constants.DOWNLOAD_PATH}/$username.txt")
 
-        file.appendText(
-            csvOf(
+        if (file.length() == 0L) {
+            val csv = csvOf(
                 headers = listOf("#", "tweet"),
-                data = posts,
+                data = tweets,
                 itemBuilder = { index, item ->
                     listOf("$index", item)
                 }
             )
-        )
+            csv.split("\n").forEach { line ->
+                t.println(infoStyle("saving $username tweet: ${line.take(40)}"))
+                file.appendText(line)
+                file.appendText("\n")
+            }
+        } else t.println(warningStyle("$username is already saved"))
     }
 
     private fun fetchNewUsers(
@@ -174,7 +207,7 @@ class Crawler(
         return try {
             Pattern.compile("<a.*</a>").matcher(tweet).replaceAll {
                 it.group().substringAfter(">").substringBefore("</a>")
-            }
+            }.trim()
         } catch (e: Exception) {
             tweet
         }
