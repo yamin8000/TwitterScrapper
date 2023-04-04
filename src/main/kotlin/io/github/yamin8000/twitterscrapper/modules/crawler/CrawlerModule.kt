@@ -10,15 +10,18 @@ class CrawlerModule : BaseModule(Menus.crawlerMenu) {
     override fun run(): Int {
         when (super.run()) {
             0 -> showMenu()
-            1 -> crawl()
+            1 -> crawl(true)
+            2 -> crawl(false)
         }
 
         run()
         return 0
     }
 
-    private fun crawl() {
-        val crawler = Crawler()
+    private fun crawl(
+        isNested: Boolean
+    ) {
+        val crawler = Crawler(isNested)
         runBlocking {
             withContext(Dispatchers.Default) {
                 crawler.crawl()

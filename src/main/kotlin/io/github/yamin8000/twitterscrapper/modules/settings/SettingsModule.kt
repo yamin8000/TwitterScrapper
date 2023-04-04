@@ -15,16 +15,22 @@ class SettingsModule : BaseModule(Menus.settingsMenu) {
     override fun run(): Int {
         when (super.run()) {
             0 -> return 0
-            1 -> changeDownloadsFolder()
+            1 -> showDownloadsFolder()
+            2 -> changeDownloadsFolder()
         }
 
         run()
         return 0
     }
 
+    private fun showDownloadsFolder() {
+        println(infoStyle("current download folder is: $DOWNLOAD_PATH"))
+    }
+
     private fun changeDownloadsFolder() {
-        t.println(infoStyle("current download folder is: $DOWNLOAD_PATH"))
-        DOWNLOAD_PATH = readSingleString(DOWNLOAD_PATH_KEY)
-        config.updateConfigFile(DOWNLOAD_PATH_KEY to DOWNLOAD_PATH)
+        showDownloadsFolder()
+        val line = readSingleString(DOWNLOAD_PATH_KEY)
+        if (line.isNotBlank())
+            config.updateConfigFile(DOWNLOAD_PATH_KEY to DOWNLOAD_PATH)
     }
 }

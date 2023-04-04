@@ -16,12 +16,14 @@ object Menus {
     """.trimIndent()
 
     val crawlerMenu = """
-        1. Crawl
+        1. Nested BFS-like crawl
+        2. Level one crawl
         0. Back
     """.trimIndent()
 
     val settingsMenu = """
-        1. Download Folder
+        1. Show downloads folder
+        2. Change downloads folder
         0. Back
     """.trimIndent()
 }

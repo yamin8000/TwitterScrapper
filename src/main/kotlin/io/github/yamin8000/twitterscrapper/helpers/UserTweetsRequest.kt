@@ -76,15 +76,13 @@ class UserTweetsRequest(
 
     private suspend fun parseUserTweets(
         timeline: Element
-    ): List<Tweet> {
-        return buildList {
-            timeline.children().forEach { tweet ->
-                val htmlClass = tweet.className()
-                if (htmlClass.startsWith("timeline-item"))
-                    getTimelineItem(tweet)?.let { add(it) }
-                if (htmlClass.startsWith("thread-line"))
-                    tweet.children().forEach { item -> getTimelineItem(item)?.let { add(it) } }
-            }
+    ) = buildList {
+        timeline.children().forEach { tweet ->
+            val htmlClass = tweet.className()
+            if (htmlClass.startsWith("timeline-item"))
+                getTimelineItem(tweet)?.let { add(it) }
+            if (htmlClass.startsWith("thread-line"))
+                tweet.children().forEach { item -> getTimelineItem(item)?.let { add(it) } }
         }
     }
 

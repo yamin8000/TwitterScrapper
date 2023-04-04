@@ -9,7 +9,7 @@ import java.io.File
 
 private val configRegex = Regex("(.+=.+\\n*)+")
 
-private const val configPath = "config/config.env"
+private const val configPath = "config\\config.env"
 
 val configFile = File(configPath)
 
@@ -36,10 +36,9 @@ class Config {
     }
 
     private fun refresh() {
-        FileUtils.createDirIfNotExists(DOWNLOAD_PATH)
-        FileUtils.createDirIfNotExists("config")
         createConfigFileIfNecessary()
         loadConfigToMemory()
+        FileUtils.createDirIfNotExists(DOWNLOAD_PATH)
     }
 
     private fun createConfigFileIfNecessary() {
@@ -50,6 +49,7 @@ class Config {
     }
 
     private fun initConfigFile() {
+        FileUtils.createDirIfNotExists("config")
         configFile.createNewFile()
         configFile.writeText(
             """

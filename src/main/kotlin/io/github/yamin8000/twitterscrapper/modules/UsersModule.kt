@@ -25,7 +25,7 @@ class UsersModule : BaseModule(Menus.userMenu) {
 
     override fun run(): Int {
         when (super.run()) {
-            0 -> showMenu()
+            0 -> return showMenu()
             1 -> runBlocking { showUsersInfo() }
             2 -> runBlocking { saveUsersInfo() }
             3 -> runBlocking {
