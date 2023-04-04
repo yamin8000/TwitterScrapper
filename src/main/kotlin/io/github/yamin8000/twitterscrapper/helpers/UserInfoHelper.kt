@@ -5,10 +5,13 @@ import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.errorStyle
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.t
 import io.github.yamin8000.twitterscrapper.model.User
 import io.github.yamin8000.twitterscrapper.util.Constants.instances
+import io.github.yamin8000.twitterscrapper.util.Utility.sanitizeNum
 import io.github.yamin8000.twitterscrapper.util.Utility.sanitizeUsername
 import org.jsoup.Jsoup
+import kotlin.random.Random
+import kotlin.random.nextInt
 
-object UserHelper {
+object UserInfoHelper {
     @Throws(Exception::class)
     suspend fun getUser(
         username: String,
@@ -19,12 +22,13 @@ object UserHelper {
         else getUserFailedRequest(username, response.code)
     }
 
+    @Throws(Exception::class)
     private suspend fun getUserFailedRequest(
         username: String,
         httpCode: Int
     ): User? {
         val temp = instances.drop(0)
-        if (temp.isNotEmpty()) return getUser(username, temp.first())
+        if (temp.isNotEmpty()) return getUser(username, instances[Random.nextInt(instances.indices)])
         else throw Exception("Fetching info for user: $username failed with $httpCode")
     }
 
@@ -54,6 +58,4 @@ object UserHelper {
             null
         }
     }
-
-    private fun String?.sanitizeNum() = this?.filter { it != ',' }?.toIntOrNull() ?: 0
 }

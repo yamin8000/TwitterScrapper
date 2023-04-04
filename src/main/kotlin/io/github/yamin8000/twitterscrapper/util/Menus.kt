@@ -11,7 +11,7 @@ object Menus {
     val userMenu = """
         1. Get user(s) info
         2. Save user(s) info
-        3. Get users' tweets
+        3. Save users' tweets
         0. Back
     """.trimIndent()
 

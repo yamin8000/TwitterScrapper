@@ -9,6 +9,8 @@ object Constants {
 
     var DEFAULT_TWEETS_LIMIT = 500
 
+    val FAILED_REQUEST_DELAY = 50L..500L
+
     const val ERROR_503 = "503 Service Temporarily Unavailable"
 
     val instances = listOf(

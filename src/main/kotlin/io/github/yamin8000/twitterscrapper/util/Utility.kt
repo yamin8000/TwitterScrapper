@@ -26,4 +26,6 @@ object Utility {
     ) = csvOf(headers, this, itemBuilder)
 
     fun String.sanitizeUsername() = this.lowercase().trim().removePrefix("@")
+
+    fun String?.sanitizeNum() = this?.filter { it != ',' }?.toIntOrNull() ?: 0
 }
