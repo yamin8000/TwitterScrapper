@@ -1,29 +1,10 @@
 package io.github.yamin8000.twitterscrapper.util
 
-import com.github.ajalt.mordant.rendering.TextColors
-import com.github.ajalt.mordant.rendering.TextStyles
-import com.github.ajalt.mordant.terminal.Terminal
-
-@OptIn(com.github.ajalt.mordant.terminal.ExperimentalTerminalApi::class)
 object Constants {
-    val mainMenu = """
-        1. Crawler
-        2. Fetch Users' Tweets
-        3. Settings
-    """.trimIndent()
-
-    val t = Terminal()
-    val resultStyle = TextColors.green
-    val infoStyle = TextColors.brightMagenta + TextStyles.bold
-    val errorStyle = TextColors.red + TextStyles.bold
-    val askStyle = TextColors.cyan + TextStyles.bold
-    val warningStyle = TextColors.yellow + TextStyles.bold
-    val menuStyle = TextColors.blue + TextStyles.bold
-
     const val TWITTER_PROFILE_REGEX_RULE = "@[a-zA-Z0-9_]+"
     val twitterProfileRegex = Regex(TWITTER_PROFILE_REGEX_RULE)
 
-    const val DOWNLOAD_FOLDER = "downloadFolder"
+    const val DOWNLOAD_PATH_KEY = "DOWNLOAD_PATH"
     var DOWNLOAD_PATH = "c:\\TwitterScrapper"
 
     var DEFAULT_TWEETS_LIMIT = 500
@@ -31,6 +12,7 @@ object Constants {
     const val ERROR_503 = "503 Service Temporarily Unavailable"
 
     val instances = listOf(
+        "https://nitter.net/",
         "https://nitter.lacontrevoie.fr/",
         "https://nitter.fdn.fr/",
         "https://nitter.kavin.rocks/",

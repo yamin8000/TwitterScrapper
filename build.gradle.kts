@@ -13,6 +13,7 @@ repositories {
 }
 
 dependencies {
+    implementation(kotlin("reflect"))
     implementation("com.squareup.okhttp3:okhttp:5.0.0-alpha.11")
     implementation("org.jsoup:jsoup:1.15.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0-Beta")

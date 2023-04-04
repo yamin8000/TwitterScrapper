@@ -1,9 +1,9 @@
-package io.github.yamin8000.twitterscrapper
+package io.github.yamin8000.twitterscrapper.modules.settings
 
-import io.github.yamin8000.twitterscrapper.util.Constants.DOWNLOAD_FOLDER
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.errorStyle
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.t
 import io.github.yamin8000.twitterscrapper.util.Constants.DOWNLOAD_PATH
-import io.github.yamin8000.twitterscrapper.util.Constants.errorStyle
-import io.github.yamin8000.twitterscrapper.util.Constants.t
+import io.github.yamin8000.twitterscrapper.util.Constants.DOWNLOAD_PATH_KEY
 import io.github.yamin8000.twitterscrapper.util.FileUtils
 import java.io.File
 
@@ -18,6 +18,24 @@ class Config {
     private val configPairs by lazy { loadConfigPairs() }
 
     init {
+        refresh()
+    }
+
+    fun updateConfigFile(configPair: Pair<String, Any>) {
+        configPairs.listIterator().let { iterator ->
+            while (iterator.hasNext()) {
+                if (iterator.next().first == configPair.first) {
+                    iterator.set(configPair.first to configPair.second.toString())
+                }
+            }
+        }
+        configFile.writeText(configPairs.joinToString("\n") {
+            "${it.first}=${it.second}"
+        })
+        refresh()
+    }
+
+    private fun refresh() {
         FileUtils.createDirIfNotExists(DOWNLOAD_PATH)
         FileUtils.createDirIfNotExists("config")
         createConfigFileIfNecessary()
@@ -35,7 +53,7 @@ class Config {
         configFile.createNewFile()
         configFile.writeText(
             """
-                $DOWNLOAD_FOLDER=$DOWNLOAD_PATH
+                $DOWNLOAD_PATH_KEY=$DOWNLOAD_PATH
                 """.trimIndent()
         )
     }
@@ -60,19 +78,6 @@ class Config {
         return configRegex.matches(configFileContent)
     }
 
-    fun updateConfigFile(configPair: Pair<String, Any>) {
-        configPairs.listIterator().let { iterator ->
-            while (iterator.hasNext()) {
-                if (iterator.next().first == configPair.first) {
-                    iterator.set(configPair.first to configPair.second.toString())
-                }
-            }
-        }
-        configFile.writeText(configPairs.joinToString("\n") {
-            "${it.first}=${it.second}"
-        })
-    }
-
     private fun loadConfigPairs(): MutableList<Pair<String, String>> {
         return configFile.readLines().map { line ->
             val pair = line.trim().split("=").take(2)
@@ -84,7 +89,7 @@ class Config {
     private fun loadConfigToMemory() {
         configPairs.forEach {
             when (it.first) {
-                DOWNLOAD_FOLDER -> DOWNLOAD_PATH = it.second
+                DOWNLOAD_PATH_KEY -> DOWNLOAD_PATH = it.second
             }
         }
     }

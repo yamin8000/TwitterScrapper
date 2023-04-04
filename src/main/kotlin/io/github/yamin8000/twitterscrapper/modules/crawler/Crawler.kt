@@ -1,16 +1,15 @@
-package io.github.yamin8000.twitterscrapper
+package io.github.yamin8000.twitterscrapper.modules.crawler
 
-import io.github.yamin8000.twitterscrapper.helpers.client
-import io.github.yamin8000.twitterscrapper.helpers.httpGet
+import io.github.yamin8000.twitterscrapper.web.get
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.askStyle
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.errorStyle
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.infoStyle
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.t
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Constants
 import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_TWEETS_LIMIT
 import io.github.yamin8000.twitterscrapper.util.Constants.ERROR_503
-import io.github.yamin8000.twitterscrapper.util.Constants.askStyle
-import io.github.yamin8000.twitterscrapper.util.Constants.errorStyle
-import io.github.yamin8000.twitterscrapper.util.Constants.infoStyle
 import io.github.yamin8000.twitterscrapper.util.Constants.instances
-import io.github.yamin8000.twitterscrapper.util.Constants.t
-import io.github.yamin8000.twitterscrapper.util.Constants.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
 import kotlinx.coroutines.*
 import okhttp3.Response
@@ -115,7 +114,7 @@ class Crawler(
             requestLoop@ do {
                 var response: Response? = null
                 try {
-                    response = client.httpGet("$tempBase$username?cursor=$cursor")
+                    response = get("$tempBase$username?cursor=$cursor")
                     html = response.body.string()
                 } catch (e: Exception) {
                     html = ""
