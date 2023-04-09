@@ -30,7 +30,7 @@ application {
 
 tasks.jar {
     manifest {
-        attributes["Main-Class"] = "io.github.instakiller.MainKt"
+        attributes["Main-Class"] = "io.github.yamin8000.twitterscrapper.MainKt"
     }
     configurations["compileClasspath"].forEach { file: File ->
         from(zipTree(file.absoluteFile))
