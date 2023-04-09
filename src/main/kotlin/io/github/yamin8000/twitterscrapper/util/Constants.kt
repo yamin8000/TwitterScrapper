@@ -1,17 +1,17 @@
 package io.github.yamin8000.twitterscrapper.util
 
 object Constants {
+    const val PROTECTED_ACCOUNT = "This account's tweets are protected."
+
     private const val TWITTER_PROFILE_REGEX_RULE = "@[a-zA-Z0-9_]+"
     val twitterProfileRegex = Regex(TWITTER_PROFILE_REGEX_RULE)
 
     const val DOWNLOAD_PATH_KEY = "DOWNLOAD_PATH"
     var DOWNLOAD_PATH = "c:\\TwitterScrapper"
 
-    var DEFAULT_TWEETS_LIMIT = 500
+    const val DEFAULT_CRAWL_TWEETS_LIMIT = 500
 
     val FAILED_REQUEST_DELAY = 50L..500L
-
-    const val ERROR_503 = "503 Service Temporarily Unavailable"
 
     val instances = listOf(
         "https://nitter.net/",

@@ -1,11 +1,13 @@
+@file:Suppress("unused")
+
 package io.github.yamin8000.twitterscrapper.helpers
 
-import com.github.ajalt.mordant.rendering.*
+import com.github.ajalt.mordant.rendering.TextColors
+import com.github.ajalt.mordant.rendering.TextStyles
 import com.github.ajalt.mordant.terminal.Terminal
-import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.table
 import java.util.*
-import kotlin.reflect.full.memberProperties
 import kotlin.reflect.KVisibility
+import kotlin.reflect.full.memberProperties
 
 @OptIn(com.github.ajalt.mordant.terminal.ExperimentalTerminalApi::class)
 object ConsoleHelper {
@@ -36,7 +38,7 @@ object ConsoleHelper {
     )
 
     val t = Terminal()
-    val resultStyle = TextColors.green
+    val resultStyle = TextColors.green + TextStyles.bold
     val infoStyle = TextColors.brightMagenta + TextStyles.bold
     val errorStyle = TextColors.red + TextStyles.bold
     val askStyle = TextColors.cyan + TextStyles.bold
@@ -126,7 +128,7 @@ object ConsoleHelper {
         }
     }
 
-    fun <T> T.table() = buildString {
+    private fun <T> T.table() = buildString {
         this@table!!::class.memberProperties.forEach {
             if (it.visibility == KVisibility.PUBLIC) {
                 appendLine(it.name)

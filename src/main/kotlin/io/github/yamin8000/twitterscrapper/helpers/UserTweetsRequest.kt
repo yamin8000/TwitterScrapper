@@ -4,7 +4,7 @@ import io.github.yamin8000.twitterscrapper.helpers.UserInfoHelper.getUser
 import io.github.yamin8000.twitterscrapper.model.Tweet
 import io.github.yamin8000.twitterscrapper.model.TweetStats
 import io.github.yamin8000.twitterscrapper.model.TweetsPage
-import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_TWEETS_LIMIT
+import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_CRAWL_TWEETS_LIMIT
 import io.github.yamin8000.twitterscrapper.util.Constants.FAILED_REQUEST_DELAY
 import io.github.yamin8000.twitterscrapper.util.Constants.instances
 import io.github.yamin8000.twitterscrapper.util.Utility.sanitizeNum
@@ -19,7 +19,7 @@ import kotlin.random.nextLong
 
 class UserTweetsRequest(
     private val username: String,
-    private val limit: Int = DEFAULT_TWEETS_LIMIT
+    private val limit: Int = DEFAULT_CRAWL_TWEETS_LIMIT
 ) {
     suspend fun get(): List<Tweet> {
         var page: TweetsPage? = null

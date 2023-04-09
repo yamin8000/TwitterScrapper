@@ -1,54 +1,44 @@
 package io.github.yamin8000.twitterscrapper.modules.crawler
 
-import io.github.yamin8000.twitterscrapper.web.get
-import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.askStyle
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.errorStyle
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.infoStyle
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.readBoolean
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.readInteger
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.readMultipleStrings
+import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.resultStyle
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.t
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Constants
-import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_TWEETS_LIMIT
-import io.github.yamin8000.twitterscrapper.util.Constants.ERROR_503
-import io.github.yamin8000.twitterscrapper.util.Constants.instances
+import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_CRAWL_TWEETS_LIMIT
+import io.github.yamin8000.twitterscrapper.util.Constants.PROTECTED_ACCOUNT
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
+import io.github.yamin8000.twitterscrapper.web.retryingGet
 import kotlinx.coroutines.*
-import okhttp3.Response
-import okio.IOException
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import java.io.File
-import java.util.regex.Pattern
-import kotlin.random.Random
-import kotlin.random.nextInt
 
 class Crawler(
-    private val isNested: Boolean = true
+    private val isNested: Boolean = true,
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
 
     private var startingUsers = listOf<String>()
 
+    private var tweetCountLimit = DEFAULT_CRAWL_TWEETS_LIMIT
+
     private var triggers: List<String> = listOf()
 
     init {
-        var line = ""
-        while (line.isBlank()) {
-            t.println(askStyle("Enter name of the starting users like this:"))
-            t.println(infoStyle("ali,reza,hamed"))
-            line = readlnOrNull() ?: ""
-            t.println(askStyle("Enter tweet limit for each user or just press enter to get default number."))
-            val limit = readlnOrNull()
-            if (!limit.isNullOrBlank()) {
-                DEFAULT_TWEETS_LIMIT = limit.toInt()
-            }
-            t.println(askStyle("Enter triggers like this or just press enter to get all."))
-            t.println(infoStyle("iran,asia"))
-            val triggerLine = readlnOrNull()
-            if (!triggerLine.isNullOrBlank()) {
-                triggers = triggerLine.split(',')
-            }
+        startingUsers = readMultipleStrings("Starting user").map { it.sanitizeUser() }
+        if (readBoolean("Do you want to limit the number of tweets for each user?(y/n)")) {
+            tweetCountLimit = readInteger(
+                message = "Enter tweet limit for each user.",
+                range = 1..DEFAULT_CRAWL_TWEETS_LIMIT
+            )
         }
-        startingUsers = line.trim().split(',').map { it.sanitizeUser() }
+        if (readBoolean("Do you want to filter tweets with Trigger words?(y/n)"))
+            triggers = readMultipleStrings("Trigger word")
     }
 
     suspend fun crawl() {
@@ -62,155 +52,109 @@ class Crawler(
     private suspend fun singleUserCrawler(
         username: String
     ) {
-        t.println(infoStyle("crawling: $username"))
-        val cleanUsername = username.sanitizeUser()
-        if (cleanUsername.isNotBlank()) {
-            val file = File("${Constants.DOWNLOAD_PATH}/${cleanUsername}.txt")
-            if (!file.exists()) {
-                val (tweets, newUsers) = withContext(scope.coroutineContext) { getTweetsWithUsers(cleanUsername) }
-                if (tweets.isNotEmpty()) {
-                    saveUserPosts(cleanUsername, tweets.filter { it.isNotBlank() }.toSet())
-                    if (isNested) {
-                        if (newUsers.isNotEmpty()) {
-                            t.println(
-                                infoStyle(
-                                    "new users from $cleanUsername are ${
-                                        newUsers.take(5).joinToString()
-                                    } and maybe more."
-                                )
-                            )
-                        } else t.println(warningStyle("$cleanUsername has no friends"))
-                        buildList {
-                            newUsers.map { it.substring(1) }.forEach {
-                                add(scope.launch { singleUserCrawler(it) })
-                            }
-                        }.joinAll()
+        t.println(infoStyle("Crawling: ") + resultStyle(username))
+
+        if (!File("${Constants.DOWNLOAD_PATH}/$username.txt").exists()) {
+            var tweetCount = 0
+            try {
+                crawlUsername(username) { elements ->
+                    t.println(infoStyle("New results for $username"))
+                    val tweets = getSingles(elements)
+                    val tweetsWithTriggers = mutableListOf<String>()
+                    triggers.forEach { trigger ->
+                        tweetsWithTriggers.addAll(tweets.filter { it.contains(trigger) })
                     }
-                } else t.println(warningStyle("$cleanUsername has no tweets"))
-            } else t.println(warningStyle("$cleanUsername exists"))
-        }
+
+                    var newTweets = tweets
+                    var newTweetsCount = newTweets.size
+                    if (triggers.isNotEmpty()) {
+                        newTweets = tweetsWithTriggers
+                        newTweetsCount = tweetsWithTriggers.size
+                    }
+
+                    if (newTweets.isNotEmpty())
+                        saveUserPosts(username, newTweets.take(tweetCountLimit).toSet())
+                    else t.println(warningStyle("Empty tweets for $username"))
+
+                    tweetCount += newTweetsCount
+                    if (tweetCount >= tweetCountLimit) throw Exception("Tweet count limit reached for $username")
+
+                    val friends = fetchNewUsers(elements.html())
+                        .map { it.sanitizeUser() }
+                        .filter { it != username }
+                    if (isNested)
+                        friends.forEach { scope.launch { singleUserCrawler(it) } }
+                }
+            } catch (e: Exception) {
+                t.println(errorStyle(e.message ?: ""))
+            }
+        } else t.println(warningStyle("$username is already being crawled"))
     }
 
-    /**
-     * God Method, it should be refactored to a class
-     */
-    private suspend fun getTweetsWithUsers(
+    private suspend fun crawlUsername(
         username: String,
-        limit: Int = DEFAULT_TWEETS_LIMIT,
-        base: String = "https://nitter.net/"
-    ): Pair<Set<String>, Set<String>> {
-        var tempBase = base
-        var cursor = ""
-
-        var tweets = mutableListOf<String>()
-        var hasMoreIndicator: String
-
+        onNewElements: (Elements) -> Unit
+    ) {
+        var cursor: String? = ""
         var html: String
-        var totalTweets: Int
-        val newUsers = mutableListOf<String>()
-
-        t.println(infoStyle("fetching $username posts from $tempBase"))
-        pagingLoop@ do {
-            requestLoop@ do {
-                var response: Response? = null
-                try {
-                    response = get("$tempBase$username?cursor=$cursor")
-                    html = response.body.string()
-                } catch (e: Exception) {
-                    html = ""
-                    t.println(errorStyle((e as IOException).message ?: "http get error"))
-                }
-                when (response?.code) {
-                    404 -> {
-                        t.println(warningStyle("$username not found"))
-                        break@pagingLoop
-                    }
-
-                    in 400..499 -> {
-                        break@pagingLoop
-                    }
-
-                    503 -> {
-                        t.println(errorStyle("### ==> $ERROR_503 or failed request <== ### for $username with instance: $tempBase"))
-                        tempBase = instances[Random.nextInt(instances.indices)]
-                        delay(Random.nextLong(50L, 500L))
-                    }
-
-                    in 500..599 -> {
-                        continue
-                    }
-
-                    else -> break@requestLoop
-                }
-            } while (true)
-            val doc = Jsoup.parse(html)
-            totalTweets = doc.getElementById("profile-stat-num")?.text()?.toInt() ?: 0
-            hasMoreIndicator = doc.select("div[class^=show-more] a").attr("href")
-            val threads = doc.select("div[class^=thread-line]")
-            tweets.addAll(getSingles(doc.allElements))
-            tweets.addAll(getSingles(threads))
-            cursor = hasMoreIndicator.split('=').last()
-            newUsers.addAll(fetchNewUsers(html).map { it.lowercase() }.toMutableList())
-            if (tweets.size >= limit)
+        do {
+            html = withContext(scope.coroutineContext) { retryingGet("$username?cursor=$cursor")?.body?.string() ?: "" }
+            if (html.contains(PROTECTED_ACCOUNT)) {
+                t.println(errorStyle(PROTECTED_ACCOUNT))
                 break
-            if (tweets.isEmpty() && totalTweets != 0)
-                continue
-        } while (hasMoreIndicator.isNotBlank())
-        newUsers.remove("@$username")
-        triggers.forEach { trigger ->
-            tweets = tweets.filter { it.contains(trigger) }.toMutableList()
-        }
-        return tweets.take(limit).map { removeLinks(it) }.toSet() to newUsers.toSet()
+            }
+            val doc = Jsoup.parse(html)
+            val error = doc.selectFirst("div[class^=error-panel]")
+            if (error != null) {
+                t.println(errorStyle(error.selectFirst("span")?.text() ?: ""))
+                break
+            }
+            cursor = doc.selectFirst("div[class^=show-more] a")
+                ?.attr("href")
+                ?.split('=')
+                ?.last()
+            onNewElements(doc.allElements)
+        } while (cursor != null)
     }
 
     private fun getSingles(
         elements: Elements
-    ): List<String> {
-        return elements.select("div[class^=timeline-item]").map {
-            it.select("div[class^=tweet-content]").html()
-        }
-    }
+    ) = elements.select("div[class^=timeline-item]").map {
+        it.selectFirst("div[class^=tweet-content]")?.text() ?: ""
+    }.filter { it.isNotBlank() }
 
     private fun saveUserPosts(
         username: String,
         tweets: Set<String>
     ) {
-        t.println(infoStyle("saving $username tweets"))
+        t.println(infoStyle("Saving $username tweets"))
         val file = File("${Constants.DOWNLOAD_PATH}/$username.txt")
 
-        if (file.length() == 0L) {
-            val csv = csvOf(
-                headers = listOf("#", "tweet"),
-                data = tweets,
-                itemBuilder = { index, item ->
-                    listOf("$index", item)
-                }
-            )
-            csv.split("\n").forEach { line ->
-                t.println(infoStyle("saving $username tweet: ${line.take(40)}"))
-                file.appendText(line)
-                file.appendText("\n")
+        var bias = 0
+        var headers: List<String>? = listOf("#", "tweet")
+        if (file.exists()) {
+            bias = file.readText().split("\n").size
+            headers = null
+        }
+
+        val csv = csvOf(
+            indexBias = bias,
+            headers = headers,
+            data = tweets,
+            itemBuilder = { index, item ->
+                listOf("$index", item)
             }
-        } else t.println(warningStyle("$username is already saved"))
+        )
+
+        csv.split("\n").forEach { line ->
+            file.appendText(line)
+            file.appendText("\n")
+        }
     }
 
     private fun fetchNewUsers(
         html: String
-    ): Set<String> {
-        return Constants.twitterProfileRegex.findAll(html).map { it.value.lowercase() }.toSet()
-    }
+    ) = Constants.twitterProfileRegex.findAll(html).map { it.value.lowercase() }.toSet()
 
-    private fun removeLinks(
-        tweet: String
-    ): String {
-        return try {
-            Pattern.compile("<a.*</a>").matcher(tweet).replaceAll {
-                it.group().substringAfter(">").substringBefore("</a>")
-            }.trim()
-        } catch (e: Exception) {
-            tweet
-        }
-    }
-
-    private fun String?.sanitizeUser() = this?.lowercase()?.trim() ?: ""
+    private fun String?.sanitizeUser() = this?.lowercase()?.trim()?.removePrefix("@") ?: ""
 }
