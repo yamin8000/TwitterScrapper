@@ -1,5 +1,7 @@
 package io.github.yamin8000.twitterscrapper
 
+import com.soywiz.korau.sound.PlaybackParameters
+import com.soywiz.korau.sound.infinitePlaybackTimes
 import com.soywiz.korau.sound.playAndWait
 import com.soywiz.korau.sound.readAudioStream
 import com.soywiz.korio.async.launch
@@ -23,6 +25,9 @@ fun main() {
 
 suspend fun elonMusk() {
     val elon = File("elonmusk.mp3")
-    if (elon.exists())
-            elon.toVfs().readAudioStream().playAndWait()
+    if (elon.exists()) {
+        elon.toVfs().readAudioStream().playAndWait(
+            params = PlaybackParameters(infinitePlaybackTimes)
+        )
+    }
 }
