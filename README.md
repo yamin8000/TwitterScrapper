@@ -14,7 +14,7 @@ This project has no affiliation to Twitter or Nitter whatsoever.
 
 ## Preview
 
-[menu](preview/menu-1-0-0.png)
+![menu](preview/menu-1-0-0.png)
 
 ## Compatibility
 
