@@ -1,25 +1,9 @@
 package io.github.yamin8000.twitterscrapper.util
 
-import io.github.yamin8000.twitterscrapper.modules.BaseModule
-import java.io.File
-import java.io.InputStream
 import kotlin.reflect.full.memberProperties
 
 
 object Utility {
-
-    fun getResource(
-        fileName: String
-    ): File? {
-        return try {
-            val url = {}::class.java.getResource(fileName)?.path
-            println(url)
-            if (url != null) return File(url)
-            else null
-        } catch (e: Exception) {
-            null
-        }
-    }
 
     fun <T> csvOf(
         data: Iterable<T>,

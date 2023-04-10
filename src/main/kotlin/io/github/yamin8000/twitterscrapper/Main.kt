@@ -8,7 +8,6 @@ import com.soywiz.korio.async.launch
 import com.soywiz.korio.file.std.toVfs
 import io.github.yamin8000.twitterscrapper.modules.MainModule
 import io.github.yamin8000.twitterscrapper.modules.settings.Config
-import io.github.yamin8000.twitterscrapper.util.Utility.getResource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import java.io.File
