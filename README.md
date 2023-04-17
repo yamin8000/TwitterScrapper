@@ -1,7 +1,7 @@
 # TwitterScrapper (WIP)
 
 Twitter Scrapper is a simple CLI tool for scrapping Tweets from Nitter instances.
-This project has no affiliation to Twitter or Nitter whatsoever.
+This project has no affiliation to Elon Musk's Twitter or Nitter whatsoever.
 
 | Icon |                Item                 |
 |:----:|:-----------------------------------:|
@@ -18,7 +18,7 @@ This project has no affiliation to Twitter or Nitter whatsoever.
 
 ## Compatibility
 
-**Java11+**
+**Java17+**
 
 ## Usage
 

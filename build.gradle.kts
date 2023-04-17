@@ -1,3 +1,5 @@
+@file:Suppress("SpellCheckingInspection")
+
 plugins {
     kotlin("jvm") version "1.8.20"
     application
@@ -18,11 +20,11 @@ dependencies {
     implementation("org.jsoup:jsoup:1.15.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.0-Beta")
     implementation("com.github.ajalt.mordant:mordant:2.0.0-beta13")
-    implementation("com.soywiz.korlibs.korau:korau-jvm:2.2.0")
+    implementation("com.soywiz.korlibs.korau:korau-jvm:2.7.0")
 }
 
 kotlin {
-    jvmToolchain(11)
+    jvmToolchain(17)
 }
 
 application {
