@@ -85,7 +85,7 @@ object ConsoleHelper {
      */
     fun readBoolean(message: String? = null): Boolean {
         return try {
-            if (message != null) t.println(askStyle(message))
+            if (message != null) t.println(askStyle("${message}(y/n)"))
             readCleanLine().lowercase(Locale.getDefault()) in affirmatives
         } catch (exception: Exception) {
             false

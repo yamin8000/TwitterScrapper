@@ -23,7 +23,7 @@ class CrawlerModule : BaseModule(Menus.crawlerMenu) {
     ) {
         val crawler = Crawler(isNested)
         runBlocking {
-            withContext(Dispatchers.Default) {
+            withContext(Dispatchers.Unconfined) {
                 crawler.crawl()
             }
         }

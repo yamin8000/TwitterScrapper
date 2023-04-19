@@ -10,6 +10,7 @@ object Constants {
     var DOWNLOAD_PATH = "c:\\TwitterScrapper"
 
     const val DEFAULT_CRAWL_TWEETS_LIMIT = 500
+    const val DEFAULT_CRAWL_DEPTH_LIMIT = 3
 
     val FAILED_REQUEST_DELAY = 50L..500L
 

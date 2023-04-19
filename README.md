@@ -66,6 +66,10 @@ Alternatively, you can download the jar file from the releases section or build 
 ## Features
 
 - Poor man's Crawler
+    - Search with trigger
+    - User tweets limit
+    - Depth limit
+- User info
 - More features (WIP)
 
 ## License

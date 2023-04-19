@@ -9,94 +9,111 @@ import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.resultStyle
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.t
 import io.github.yamin8000.twitterscrapper.helpers.ConsoleHelper.warningStyle
 import io.github.yamin8000.twitterscrapper.util.Constants
+import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_CRAWL_DEPTH_LIMIT
 import io.github.yamin8000.twitterscrapper.util.Constants.DEFAULT_CRAWL_TWEETS_LIMIT
 import io.github.yamin8000.twitterscrapper.util.Constants.PROTECTED_ACCOUNT
+import io.github.yamin8000.twitterscrapper.util.KTree
 import io.github.yamin8000.twitterscrapper.util.Utility.csvOf
 import io.github.yamin8000.twitterscrapper.web.retryingGet
 import kotlinx.coroutines.*
+import kotlinx.coroutines.channels.Channel
 import org.jsoup.Jsoup
 import org.jsoup.select.Elements
 import java.io.File
 
 class Crawler(
-    private val isNested: Boolean = true,
+    isNested: Boolean = true
 ) {
     private val scope = CoroutineScope(Dispatchers.IO)
 
-    private var startingUsers = listOf<String>()
+    private val channel = Channel<Job>(4)
+
+    private val startingUsers: List<String>
 
     private var tweetCountLimit = DEFAULT_CRAWL_TWEETS_LIMIT
 
-    private var triggers: List<String> = listOf()
+    private var triggers = listOf<String>()
+
+    private var root: KTree<String>? = null
+
+    private var depthLimit = DEFAULT_CRAWL_DEPTH_LIMIT
 
     init {
         startingUsers = readMultipleStrings("Starting user").map { it.sanitizeUser() }
-        if (readBoolean("Do you want to limit the number of tweets for each user?(y/n)")) {
-            tweetCountLimit = readInteger(
-                message = "Enter tweet limit for each user.",
-                range = 1..DEFAULT_CRAWL_TWEETS_LIMIT
-            )
+        if (readBoolean("Do you want to customize the crawler?")) {
+            if (readBoolean("Do you want to limit the number of tweets for each user?")) {
+                tweetCountLimit = readInteger(
+                    message = "Enter tweet limit for each user.",
+                    range = 1..DEFAULT_CRAWL_TWEETS_LIMIT
+                )
+            }
+            if (isNested) {
+                if (readBoolean("Do you want to specify crawl depth limit?"))
+                    depthLimit = readInteger("Crawl depth limit")
+            } else depthLimit = 1
+            if (readBoolean("Do you want to filter tweets with Trigger words?"))
+                triggers = readMultipleStrings("Trigger word")
         }
-        if (readBoolean("Do you want to filter tweets with Trigger words?(y/n)"))
-            triggers = readMultipleStrings("Trigger word")
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     suspend fun crawl() {
-        buildList {
-            startingUsers.forEach { user ->
-                add(scope.launch { singleUserCrawler(user) })
+        startingUsers.forEach { user ->
+            channel.send(singleUserCrawler(user))
+        }
+        while (true) {
+            if (channel.isEmpty) {
+                t.println(resultStyle("Crawler Stopped!"))
+                break
             }
-        }.joinAll()
+            delay(5000)
+        }
     }
 
     private suspend fun singleUserCrawler(
         username: String
-    ) {
+    ): Job = scope.launch {
+        if (root == null) root = KTree(username)
+
         t.println(infoStyle("Crawling: ") + resultStyle(username))
 
         if (!File("${Constants.DOWNLOAD_PATH}/$username.txt").exists()) {
-            var tweetCount = 0
-            try {
-                crawlUsername(username) { elements ->
-                    t.println(infoStyle("New results for $username"))
-                    val tweets = getSingles(elements)
-                    val tweetsWithTriggers = mutableListOf<String>()
-                    triggers.forEach { trigger ->
-                        tweetsWithTriggers.addAll(tweets.filter { it.contains(trigger) })
-                    }
-
-                    var newTweets = tweets
-                    var newTweetsCount = newTweets.size
-                    if (triggers.isNotEmpty()) {
-                        newTweets = tweetsWithTriggers
-                        newTweetsCount = tweetsWithTriggers.size
-                    }
-
-                    if (newTweets.isNotEmpty())
-                        saveUserPosts(username, newTweets.take(tweetCountLimit).toSet())
-                    else t.println(warningStyle("Empty tweets for $username"))
-
-                    tweetCount += newTweetsCount
-                    if (tweetCount >= tweetCountLimit) throw Exception("Tweet count limit reached for $username")
-
-                    val friends = fetchNewUsers(elements.html())
-                        .map { it.sanitizeUser() }
-                        .filter { it != username }
-                    if (isNested)
-                        friends.forEach { scope.launch { singleUserCrawler(it) } }
-                }
-            } catch (e: Exception) {
-                t.println(errorStyle(e.message ?: ""))
+            val (tweets, friends) = crawlUsername(username, tweetCountLimit)
+            t.println(infoStyle("New results for $username"))
+            val tweetsWithTriggers = mutableListOf<String>()
+            triggers.forEach { trigger ->
+                tweetsWithTriggers.addAll(tweets.filter { it.contains(trigger) })
             }
+
+            val newTweets = if (triggers.isNotEmpty()) tweetsWithTriggers else tweets
+
+            val node = root?.findDescendant(username) ?: root
+            t.println(infoStyle("$username, Tree level: ${node?.level}"))
+            if (tweets.isNotEmpty() && node != null && node.level <= depthLimit) {
+                if (newTweets.isNotEmpty())
+                    saveUserPosts(username, newTweets.take(tweetCountLimit).toSet())
+
+                friends.forEach {
+                    node.addChild(it)
+                }
+                if (depthLimit >= 1) {
+                    node.children().filter { it.level <= depthLimit }.forEach {
+                        channel.send(singleUserCrawler(it.data))
+                    }
+                }
+            } else t.println(warningStyle("Empty tweets for $username"))
         } else t.println(warningStyle("$username is already being crawled"))
+        channel.receive()
     }
 
     private suspend fun crawlUsername(
         username: String,
-        onNewElements: (Elements) -> Unit
-    ) {
+        limit: Int
+    ): Pair<List<String>, List<String>> {
         var cursor: String? = ""
         var html: String
+        val tweets = mutableSetOf<String>()
+        val friends = mutableSetOf<String>()
         do {
             html = withContext(scope.coroutineContext) { retryingGet("$username?cursor=$cursor")?.body?.string() ?: "" }
             if (html.contains(PROTECTED_ACCOUNT)) {
@@ -113,8 +130,15 @@ class Crawler(
                 ?.attr("href")
                 ?.split('=')
                 ?.last()
-            onNewElements(doc.allElements)
+            tweets.addAll(getSingles(doc.allElements))
+            friends.addAll(
+                fetchNewUsers(html)
+                    .map { it.sanitizeUser() }
+                    .filter { it != username }
+            )
+            if (tweets.take(limit).size >= limit) break
         } while (cursor != null)
+        return tweets.take(limit) to friends.toList()
     }
 
     private fun getSingles(
@@ -130,15 +154,9 @@ class Crawler(
         t.println(infoStyle("Saving $username tweets"))
         val file = File("${Constants.DOWNLOAD_PATH}/$username.txt")
 
-        var bias = 0
-        var headers: List<String>? = listOf("#", "tweet")
-        if (file.exists()) {
-            bias = file.readText().split("\n").size
-            headers = null
-        }
+        val headers = listOf("#", "tweet")
 
         val csv = csvOf(
-            indexBias = bias,
             headers = headers,
             data = tweets,
             itemBuilder = { index, item ->
